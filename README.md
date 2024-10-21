@@ -31,7 +31,8 @@ GrocerEats® aims to simplify the shopping experience for local buyers by helpin
 
 ### Wireframe
 
-- **Figma project**: _coming soon_
+- **Figma project**: https://www.figma.com/design/kEedvA9AiY43oCTQpG6NHZ/Wireframe-GrocerEats?node-id=0-1&node-type=canvas&t=MNCkRTihBmfnCgtm-0
+
 
 ## Architecture
 
