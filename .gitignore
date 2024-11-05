@@ -1,0 +1,16 @@
+# Ignore Python virtual environment
+backend/venv/
+
+# Ignore Django migrations
+backend/grocereats_api/migrations/
+
+# Ignore Flutter build files
+frontend/build/
+frontend/ios/Flutter/Flutter.framework
+frontend/ios/Flutter/Flutter.podspec
+
+# Other ignores
+__pycache__/
+*.pyc
+*.log
+*.sqlite3

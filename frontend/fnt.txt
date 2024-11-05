@@ -1,0 +1,1 @@
+Placeholder for frontend folder. Will be removed when starting Flutter project.
