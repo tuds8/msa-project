@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-4o++&-r5h)$$@%4^#*v7wpwd@x1)cy@q9ahi&1ckty!$1f5dkf
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['127.0.0.1', '10.0.2.2', 'localhost']
 
 
 # Application definition
@@ -37,7 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'grocereats_api',
+    'grocereats_api.apps.GrocereatsApiConfig',
     'rest_framework',
 ]
 
@@ -127,3 +127,4 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+AUTH_USER_MODEL = 'grocereats_api.User'

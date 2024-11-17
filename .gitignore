@@ -3,6 +3,7 @@ backend/venv/
 
 # Ignore Django migrations
 backend/grocereats_api/migrations/
+backend/.idea/
 
 # Ignore Flutter build files
 frontend/build/
