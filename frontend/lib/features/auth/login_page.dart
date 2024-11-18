@@ -9,7 +9,7 @@ class LoginPage extends StatelessWidget {
 
   Future<void> loginUser(BuildContext context) async {
     final response = await ApiService.postRequest(
-      'login',
+      'token',
       {
         "username": usernameController.text,
         "password": passwordController.text,

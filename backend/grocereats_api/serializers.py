@@ -52,7 +52,7 @@ class StockSerializer(serializers.ModelSerializer):
             'quantity',
             'timestamp_last_modified',
         ]
-        read_only_fields = ['id', 'timestamp_last_modified']
+        read_only_fields = ['id', 'timestamp_last_modified', 'shop']
 
 
 class OrderItemSerializer(serializers.ModelSerializer):

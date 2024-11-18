@@ -2,12 +2,12 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
-from django.contrib.auth import authenticate, login, logout
 from django.http import JsonResponse
 from .models import Shop, Stock, Order, User
 from .serializers import ShopSerializer, StockSerializer, OrderSerializer, UserSerializer
 from .permissions import IsSeller, IsBuyer
-from django.views.decorators.csrf import csrf_exempt
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 
 
 @api_view(['GET'])
@@ -27,28 +27,24 @@ def register(request):
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])  # Public access
-def login_user(request):
-    username = request.data.get('username')
-    password = request.data.get('password')
-
-    print(f"Attempting login for username: {username}")  # Debug log
-    user = authenticate(request, username=username, password=password)
-
-    if user is not None:
-        login(request, user)
-        return Response({'message': 'Logged in successfully!'}, status=status.HTTP_200_OK)
-
-    print("Invalid credentials")  # Debug log
-    return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
-
-
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])  # Authenticated users
+@permission_classes([IsAuthenticated])  # Ensure only authenticated users can log out
 def logout_user(request):
-    logout(request)
-    return Response({'message': 'Logged out successfully!'}, status=status.HTTP_200_OK)
+    try:
+        # Extract the refresh token from the request body
+        refresh_token = request.data.get('refresh')
+        if not refresh_token:
+            return Response({'error': 'Refresh token is required for logout'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Blacklist the refresh token to invalidate it
+        token = RefreshToken(refresh_token)
+        token.blacklist()
+
+        return Response({'message': 'Logged out successfully!'}, status=status.HTTP_200_OK)
+
+    except TokenError:
+        return Response({'error': 'Invalid or expired refresh token'}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response({'error': 'An error occurred while logging out'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['GET', 'POST'])
@@ -99,9 +95,19 @@ def order_detail(request, id):
 @api_view(['POST'])
 @permission_classes([IsSeller])  # Only sellers
 def add_stock(request):
+    try:
+        # Ensure the seller has a shop
+        shop = Shop.objects.get(seller=request.user)
+    except Shop.DoesNotExist:
+        return Response(
+            {'error': 'You do not have an associated shop.'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    # Create a new stock entry associated with the seller's shop
     serializer = StockSerializer(data=request.data)
     if serializer.is_valid():
-        serializer.save()
+        serializer.save(shop=shop)  # Automatically associate with the seller's shop
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
