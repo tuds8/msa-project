@@ -3,8 +3,9 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from django.http import JsonResponse
-from .models import Shop, Stock, Order, User
-from .serializers import ShopSerializer, StockSerializer, OrderSerializer, UserSerializer
+from .models import Shop, Stock, Order, OrderItem, SubCategory, Category, PickupPoint
+from .serializers import ShopSerializer, StockSerializer, OrderSerializer, UserSerializer, SubCategorySerializer, \
+    CategorySerializer, RatingSerializer, PickupPointSerializer
 from .permissions import IsSeller, IsBuyer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
@@ -47,53 +48,117 @@ def logout_user(request):
         return Response({'error': 'An error occurred while logging out'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])  # Both sellers and buyers
-def orders(request):
-    if request.method == 'GET':
-        if request.user.role == 'customer':  # Buyers
-            orders_list = Order.objects.filter(buyer=request.user)
-        elif request.user.role == 'seller':  # Sellers
-            orders_list = Order.objects.filter(shop__seller=request.user)
-        else:
-            return Response({'error': 'Invalid user role'}, status=status.HTTP_403_FORBIDDEN)
-        serializer = OrderSerializer(orders_list, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])  # Both sellers and customers
+def list_orders(request):
+    if request.user.role == 'customer':  # Customers
+        orders_list = Order.objects.filter(buyer=request.user)
+    elif request.user.role == 'seller':  # Sellers
+        orders_list = Order.objects.filter(shop__seller=request.user)
+    else:
+        return Response({'error': 'Invalid user role'}, status=status.HTTP_403_FORBIDDEN)
 
-    elif request.method == 'POST' and request.user.role == 'customer':  # Buyers only
-        serializer = OrderSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(buyer=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    serializer = OrderSerializer(orders_list, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
 
-    return Response({'error': 'Only buyers can create orders'}, status=status.HTTP_403_FORBIDDEN)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, IsBuyer])  # Customers only
+def place_order(request):
+    if request.user.role != 'customer':
+        return Response({'error': 'Only customers can place orders.'}, status=status.HTTP_403_FORBIDDEN)
+
+    serializer = OrderSerializer(data=request.data)
+    if serializer.is_valid():
+        items_data = serializer.validated_data['items']
+        total_price = 0
+
+        # Process each order item
+        for item_data in items_data:
+            stock = item_data['stock']
+            quantity = item_data['quantity']
+
+            # Check stock availability
+            if stock.quantity < quantity:
+                return Response(
+                    {'error': f'Not enough stock for {stock.name}. Available: {stock.quantity}.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Deduct stock
+            stock.quantity -= quantity
+            stock.save()
+            price_at_purchase = stock.unit_price  # Assuming Stock has a `unit_price` field
+            total_price += price_at_purchase * quantity
+
+        # Create the order and order items
+        order = serializer.save(buyer=request.user, total_price=total_price)
+
+        # Save each order item
+        for item_data in items_data:
+            OrderItem.objects.create(
+                order=order,
+                stock=item_data['stock'],
+                quantity=item_data['quantity'],
+                price_at_purchase=item_data['stock'].unit_price
+            )
+
+        return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET', 'PATCH'])
-@permission_classes([IsAuthenticated])  # Both sellers and buyers
+@permission_classes([IsAuthenticated])  # Both sellers and customers
 def order_detail(request, id):
     try:
         order = Order.objects.get(id=id)
     except Order.DoesNotExist:
         return Response({'error': 'Order not found'}, status=status.HTTP_404_NOT_FOUND)
 
-    if request.method == 'GET':  # Both roles can view orders
+    if request.method == 'GET':  # View order details
+        if request.user != order.buyer and request.user != order.shop.seller:
+            return Response({'error': 'You are not authorized to view this order.'}, status=status.HTTP_403_FORBIDDEN)
+
         serializer = OrderSerializer(order)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    elif request.method == 'PATCH' and request.user.role == 'seller':  # Only sellers can update order status
-        serializer = OrderSerializer(order, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    elif request.method == 'PATCH':  # Update order status
+        if request.user.role == 'seller' and request.user == order.shop.seller:
+            serializer = OrderSerializer(order, data=request.data, partial=True)
+            if serializer.is_valid():
+                new_status = serializer.validated_data.get('status')
+                if new_status == 'cancelled' and order.status == 'pending':
+                    # Restore stock for cancelled orders
+                    for item in order.items.all():
+                        item.stock.quantity += item.quantity
+                        item.stock.save()
 
-    return Response({'error': 'Only sellers can update orders'}, status=status.HTTP_403_FORBIDDEN)
+                order = serializer.save()
+                return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        elif request.user.role == 'customer' and request.user == order.buyer:
+            # Customers can cancel only pending orders
+            if order.status != 'pending':
+                return Response({'error': 'You can only cancel orders in pending status.'}, status=status.HTTP_403_FORBIDDEN)
+
+            serializer = OrderSerializer(order, data={'status': 'cancelled'}, partial=True)
+            if serializer.is_valid():
+                # Restore stock for cancelled orders
+                for item in order.items.all():
+                    item.stock.quantity += item.quantity
+                    item.stock.save()
+
+                order = serializer.save()
+                return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response({'error': 'Unauthorized action.'}, status=status.HTTP_403_FORBIDDEN)
 
 
 @api_view(['POST'])
-@permission_classes([IsSeller])  # Only sellers
+@permission_classes([IsAuthenticated, IsSeller])  # Only sellers
 def add_stock(request):
     try:
         # Ensure the seller has a shop
@@ -112,26 +177,56 @@ def add_stock(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated, IsSeller])  # Only sellers
+def remove_stock(request, id):
+    try:
+        # Ensure the stock belongs to the seller's shop
+        stock = Stock.objects.get(id=id, shop__seller=request.user)
+    except Stock.DoesNotExist:
+        return Response(
+            {'error': 'Stock entry not found or does not belong to your shop.'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    # Delete the stock entry
+    stock.delete()
+    return Response({'message': 'Stock entry deleted successfully.'}, status=status.HTTP_200_OK)
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated, IsSeller])  # Only sellers
+def edit_stock(request, id):
+    try:
+        # Ensure the stock belongs to the seller's shop
+        stock = Stock.objects.get(id=id, shop__seller=request.user)
+    except Stock.DoesNotExist:
+        return Response(
+            {'error': 'Stock entry not found or does not belong to your shop.'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    # Partially update the stock entry
+    serializer = StockSerializer(stock, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])  # Both sellers and buyers
 def view_stocks(request):
-    shop_id = request.query_params.get('shop_id')
-    if shop_id:
-        stocks = Stock.objects.filter(shop_id=shop_id)
-    else:
-        stocks = Stock.objects.all()
-    serializer = StockSerializer(stocks, many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK)
+    shop_id = request.query_params.get('shop_id')  # Expect `shop_id` in query parameters
+    if not shop_id:
+        return Response({'error': 'shop_id query parameter is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])  # Buyers and sellers can view shop stocks
-def shop_stocks(request, shop_id):
     try:
         shop = Shop.objects.get(id=shop_id)
     except Shop.DoesNotExist:
-        return Response({'error': 'Shop not found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'error': 'Shop not found.'}, status=status.HTTP_404_NOT_FOUND)
 
+    # Retrieve the stock entries for the specified shop
     stocks = Stock.objects.filter(shop=shop)
     serializer = StockSerializer(stocks, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
@@ -153,6 +248,99 @@ def shops(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     return Response({'error': 'Only sellers can add shops'}, status=status.HTTP_403_FORBIDDEN)
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated, IsSeller])  # Only sellers
+def update_shop(request):
+    try:
+        # Ensure the seller has a shop
+        shop = Shop.objects.get(seller=request.user)
+    except Shop.DoesNotExist:
+        return Response(
+            {'error': 'You do not have an associated shop.'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    # Partially update the shop information
+    serializer = ShopSerializer(shop, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def rate_user_or_shop(request):
+    serializer = RatingSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    order = serializer.validated_data['order_id']
+    rating = serializer.validated_data['rating']
+
+    if request.user.role == 'seller':  # Seller rates customer
+        if order.shop.seller != request.user:  # Ensure the seller owns the shop
+            return Response({'error': 'You can only rate customers from your shop.'}, status=status.HTTP_403_FORBIDDEN)
+        if order.status != 'completed':
+            return Response({'error': 'You can only rate customers for completed orders.'}, status=status.HTTP_400_BAD_REQUEST)
+        order.customer_rating = rating
+        order.save()
+        order.buyer.update_rating()  # Update the customer's average rating
+        return Response({'message': f'Customer rated successfully with {rating}.'}, status=status.HTTP_200_OK)
+
+    elif request.user.role == 'customer':  # Customer rates shop
+        if order.buyer != request.user:  # Ensure the order belongs to the customer
+            return Response({'error': 'You can only rate shops for your orders.'}, status=status.HTTP_403_FORBIDDEN)
+        if order.status != 'completed':
+            return Response({'error': 'You can only rate shops for completed orders.'}, status=status.HTTP_400_BAD_REQUEST)
+        order.shop_rating = rating
+        order.save()
+        order.shop.update_rating()  # Update the shop's average rating
+        return Response({'message': f'Shop rated successfully with {rating}.'}, status=status.HTTP_200_OK)
+
+    return Response({'error': 'Invalid role for rating.'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])  # Both sellers and buyers
+def list_subcategories(request):
+    subcategories = SubCategory.objects.all()
+    serializer = SubCategorySerializer(subcategories, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])  # Both sellers and buyers
+def list_categories(request):
+    categories = Category.objects.all()  # Retrieve all categories
+    serializer = CategorySerializer(categories, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, IsSeller])  # Only sellers
+def create_pickup_point(request):
+    serializer = PickupPointSerializer(data=request.data)
+    if serializer.is_valid():
+        # Save the pickup point
+        pickup_point = serializer.save()
+        return Response(
+            {
+                'message': 'Pickup point created successfully!',
+                'pickup_point': serializer.data  # Use the serialized data for response
+            },
+            status=status.HTTP_201_CREATED
+        )
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])  # Both sellers and buyers
+def list_pickup_points(request):
+    pickup_points = PickupPoint.objects.all()  # Retrieve all pickup points
+    serializer = PickupPointSerializer(pickup_points, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 @api_view(['GET', 'PATCH'])
