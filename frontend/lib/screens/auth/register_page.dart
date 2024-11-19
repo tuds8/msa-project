@@ -16,33 +16,17 @@ class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController phoneNumberController = TextEditingController();
 
-  String selectedRole = "Customer"; // Default role
+  String? selectedRole; // Nullable to ensure validation
   final List<String> roles = ["Customer", "Seller"];
 
   Future<void> registerUser(BuildContext context) async {
-    final response = await ApiService.postRequest(
-      'register',
-      {
-        "first_name": firstNameController.text,
-        "last_name": lastNameController.text,
-        "username": usernameController.text,
-        "email": emailController.text,
-        "password": passwordController.text,
-        "phone": phoneNumberController.text,
-        "role": selectedRole.toLowerCase(),
-      },
-    );
-
-    if (response.statusCode == 201) {
-      print("Registration successful");
-      Navigator.pop(context);
-    } else {
-      print("Registration failed: ${response.body}");
+    if (selectedRole == null) {
+      // Show an alert if role is not selected
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text("Registration Failed"),
-          content: Text(response.body),
+          title: const Text("Missing Role"),
+          content: const Text("Please select a role before submitting."),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -51,6 +35,45 @@ class _RegisterPageState extends State<RegisterPage> {
           ],
         ),
       );
+      return;
+    }
+
+    print(selectedRole);
+
+    final requestData = {
+      "first_name": firstNameController.text,
+      "last_name": lastNameController.text,
+      "username": usernameController.text,
+      "email": emailController.text,
+      "password": passwordController.text,
+      "phone": phoneNumberController.text,
+      "role": selectedRole!.toLowerCase(),
+    };
+
+    try {
+      final response = await ApiService.postRequest('register', requestData);
+
+      if (response.statusCode == 201) {
+        print("Registration successful");
+        Navigator.pushReplacementNamed(context, '/login');
+      } else {
+        print("Registration failed: ${response.body}");
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text("Registration Failed"),
+            content: Text(response.body),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("OK"),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      print("Error during registration: $e");
     }
   }
 
@@ -105,6 +128,8 @@ class _RegisterPageState extends State<RegisterPage> {
                   );
                 }).toList(),
                 decoration: const InputDecoration(labelText: "Role"),
+                validator: (value) =>
+                    value == null ? "Please select a role" : null,
               ),
               const SizedBox(height: 20),
               ElevatedButton(

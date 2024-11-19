@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'features/auth/login_page.dart';
-import 'features/auth/register_page.dart';
-import 'features/home/home_page.dart';
+import 'package:frontend/screens/auth/login_page.dart';
+import 'package:frontend/screens/auth/register_page.dart';
+import 'package:frontend/screens/main_screen.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -14,11 +14,11 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      initialRoute: '/',
+      initialRoute: '/login',
       routes: {
-        '/': (context) => LoginPage(),
-        '/register': (context) => RegisterPage(),
-        '/home': (context) => HomePage(),
+        '/login': (context) => const LoginPage(),
+        '/register': (context) => const RegisterPage(),
+        '/main': (context) => const MainScreen(),
       },
     );
   }
