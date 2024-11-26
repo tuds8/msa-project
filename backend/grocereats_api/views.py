@@ -249,9 +249,9 @@ def shops(request):
 
     return Response({'error': 'Only sellers can add shops'}, status=status.HTTP_403_FORBIDDEN)
 
-@api_view(['PATCH'])
+@api_view(['GET', 'PATCH'])
 @permission_classes([IsAuthenticated, IsSeller])  # Only sellers
-def update_shop(request):
+def manage_shop(request):
     try:
         # Ensure the seller has a shop
         shop = Shop.objects.get(seller=request.user)
@@ -261,12 +261,16 @@ def update_shop(request):
             status=status.HTTP_403_FORBIDDEN
         )
 
-    # Partially update the shop information
-    serializer = ShopSerializer(shop, data=request.data, partial=True)
-    if serializer.is_valid():
-        serializer.save()
+    if request.method == 'GET':  # Retrieve the seller's shop details
+        serializer = ShopSerializer(shop)
         return Response(serializer.data, status=status.HTTP_200_OK)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'PATCH':  # Update the seller's shop details
+        serializer = ShopSerializer(shop, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['POST'])
