@@ -1,8 +1,28 @@
 plugins {
     id "com.android.application"
     id "kotlin-android"
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id "dev.flutter.flutter-gradle-plugin"
+}
+
+import org.apache.tools.ant.taskdefs.condition.Os
+import java.util.Properties
+
+def flutterDotenvProperties = new Properties()
+def flutterDotenvFile = rootProject.file("../.env")
+
+// Load .env file if it exists
+if (flutterDotenvFile.exists()) {
+    flutterDotenvProperties.load(new FileInputStream(flutterDotenvFile))
+    println("Loaded .env file successfully")
+} else {
+    println("Warning: .env file not found")
+}
+
+// Check and fallback for missing GOOGLE_MAPS_API_KEY
+def googleMapsApiKey = flutterDotenvProperties.getProperty('GOOGLE_MAPS_API_KEY')
+if (googleMapsApiKey == null || googleMapsApiKey.isEmpty()) {
+    println("Warning: GOOGLE_MAPS_API_KEY is missing. Using a fallback value.")
+    googleMapsApiKey = ""
 }
 
 android {
@@ -20,20 +40,21 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.frontend"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // Add manifest placeholders to inject the API key
+        manifestPlaceholders = [
+            GOOGLE_MAPS_API_KEY: flutterDotenvProperties.getProperty('GOOGLE_MAPS_API_KEY', 'fallback-key'),
+            applicationName    : "io.flutter.app.FlutterApplication"
+        ]
     }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.debug
         }
     }

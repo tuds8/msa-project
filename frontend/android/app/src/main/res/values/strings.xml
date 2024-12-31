@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">GrocerEats</string>
+    <string name="location_permission_message">This app requires location access to function properly.</string>
+</resources>
