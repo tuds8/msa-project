@@ -241,6 +241,7 @@ def shops(request):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'POST' and request.user.role == 'seller':  # Only sellers can create shops
+        print(request.data)
         serializer = ShopSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(seller=request.user)
@@ -262,11 +263,14 @@ def manage_shop(request):
         )
 
     if request.method == 'GET':  # Retrieve the seller's shop details
-        serializer = ShopSerializer(shop)
+        # Pass the request context to the serializer
+        serializer = ShopSerializer(shop, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'PATCH':  # Update the seller's shop details
-        serializer = ShopSerializer(shop, data=request.data, partial=True)
+        # Pass the request context to the serializer
+        print(request.data)
+        serializer = ShopSerializer(shop, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -326,6 +330,7 @@ def list_categories(request):
 @permission_classes([IsAuthenticated, IsSeller])  # Only sellers
 def create_pickup_point(request):
     serializer = PickupPointSerializer(data=request.data)
+    print(request.data)
     if serializer.is_valid():
         # Save the pickup point
         pickup_point = serializer.save()

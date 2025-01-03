@@ -57,11 +57,18 @@ class PickupPointSerializer(serializers.ModelSerializer):
 
 class ShopSerializer(serializers.ModelSerializer):
     seller = UserSerializer(read_only=True)  # Include seller details as read-only
+    pickup_point = serializers.PrimaryKeyRelatedField(queryset=PickupPoint.objects.all())  # Handle pickup_point as ID for writing
 
     class Meta:
         model = Shop
         fields = ['id', 'name', 'pickup_point', 'seller']
         read_only_fields = ['id', 'seller']
+
+    def to_representation(self, instance):
+        """Customize the representation for GET requests to include full pickup_point details."""
+        representation = super().to_representation(instance)
+        representation['pickup_point'] = PickupPointSerializer(instance.pickup_point).data
+        return representation
 
 
 class RatingSerializer(serializers.Serializer):
