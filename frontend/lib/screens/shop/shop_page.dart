@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/screens/shop/shop_edit.dart';
 import 'package:frontend/screens/shop/shop_register.dart';
+import 'package:frontend/screens/shop/stock_page.dart';
 import 'package:frontend/services/api_service.dart';
 import 'dart:convert';
 
@@ -44,7 +45,7 @@ class _ShopPageState extends State<ShopPage> {
       );
     }
 
-    return FutureBuilder<Map<String, dynamic>?>(
+    return FutureBuilder<Map<String, dynamic>?>( 
       future: _fetchShopDetails(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -128,6 +129,19 @@ class _ShopPageState extends State<ShopPage> {
                     );
                   },
                   child: const Text("Edit Shop"),
+                ),
+
+                // View Stock Button
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => StockPage(shopId: shopDetails['id']),
+                      ),
+                    );
+                  },
+                  child: const Text("View Stock"),
                 ),
               ],
             ),

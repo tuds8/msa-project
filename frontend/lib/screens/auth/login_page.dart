@@ -12,10 +12,15 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  bool _isLoading = false;
 
   Future<void> _login() async {
     final username = _usernameController.text;
     final password = _passwordController.text;
+
+    setState(() {
+      _isLoading = true;
+    });
 
     try {
       final response = await ApiService.postRequest(
@@ -31,18 +36,32 @@ class _LoginPageState extends State<LoginPage> {
         if (accessToken != null && refreshToken != null) {
           await ApiService.saveTokens(accessToken, refreshToken);
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Login successful")),
-          );
-          Navigator.pushReplacementNamed(context, '/main');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Login successful")),
+            );
+            Navigator.pushReplacementNamed(context, '/main');
+          }
         }
       } else {
-        throw Exception("Invalid login credentials");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Invalid login credentials")),
+          );
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: ${e.toString()}")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: ${e.toString()}")),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -54,33 +73,39 @@ class _LoginPageState extends State<LoginPage> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            TextField(
-              controller: _usernameController,
-              decoration: const InputDecoration(labelText: "Username"),
-            ),
-            TextField(
-              controller: _passwordController,
-              decoration: const InputDecoration(labelText: "Password"),
-              obscureText: true,
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _login,
-              child: const Text("Login"),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text("Don't have an account? "),
-                TextButton(
-                  onPressed: () {
-                    Navigator.pushNamed(context, '/register');
-                  },
-                  child: const Text("Register"),
-                ),
-              ],
-            ),
+            if (_isLoading)
+              const Center(child: CircularProgressIndicator())
+            else ...[
+              TextField(
+                controller: _usernameController,
+                decoration: const InputDecoration(labelText: "Username"),
+              ),
+              TextField(
+                controller: _passwordController,
+                decoration: const InputDecoration(labelText: "Password"),
+                obscureText: true,
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _login,
+                child: const Text("Login"),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text("Don't have an account? "),
+                  TextButton(
+                    onPressed: () {
+                      if (mounted) {
+                        Navigator.pushNamed(context, '/register');
+                      }
+                    },
+                    child: const Text("Register"),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
