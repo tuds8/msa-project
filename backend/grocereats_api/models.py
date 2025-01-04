@@ -83,6 +83,7 @@ class Stock(models.Model):
     id = models.BigAutoField(primary_key=True)
     name = models.CharField(max_length=255)
     unit = models.CharField(max_length=50)
+    price_per_unit = models.DecimalField(max_digits=10, decimal_places=2, null=False, blank=False)
     subcategory = models.ForeignKey('SubCategory', on_delete=models.CASCADE)
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name='stocks')
     description = models.TextField(blank=True, null=True)
@@ -99,6 +100,7 @@ class Stock(models.Model):
 
 class Order(models.Model):
     STATUS_CHOICES = [
+        ('active', 'Active'),
         ('pending', 'Pending'),
         ('completed', 'Completed'),
         ('cancelled', 'Cancelled'),

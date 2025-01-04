@@ -85,7 +85,7 @@ class RatingSerializer(serializers.Serializer):
 
 class StockSerializer(serializers.ModelSerializer):
     shop = ShopSerializer(read_only=True)  # Read-only shop details
-    subcategory = serializers.PrimaryKeyRelatedField(queryset=SubCategory.objects.all())  # Allow selecting subcategory
+    subcategory = serializers.PrimaryKeyRelatedField(queryset=SubCategory.objects.all())  # Accept subcategory ID for writing
     category = serializers.SerializerMethodField()  # Dynamically include category details in response
 
     class Meta:
@@ -94,7 +94,8 @@ class StockSerializer(serializers.ModelSerializer):
             'id',
             'name',
             'unit',
-            'subcategory',
+            'price_per_unit',
+            'subcategory',  # Use ID for write operations
             'category',  # Dynamically fetched
             'shop',
             'description',
@@ -103,6 +104,13 @@ class StockSerializer(serializers.ModelSerializer):
             'timestamp_last_modified',
         ]
         read_only_fields = ['id', 'timestamp_last_modified', 'shop', 'category']
+
+    def to_representation(self, instance):
+        """Customize the representation for GET requests to include subcategory name."""
+        representation = super().to_representation(instance)
+        # Replace subcategory ID with its name in the representation
+        representation['subcategory'] = instance.subcategory.name
+        return representation
 
     def get_category(self, obj):
         # Fetch the category via the related subcategory

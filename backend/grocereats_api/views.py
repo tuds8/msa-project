@@ -108,6 +108,22 @@ def place_order(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsBuyer])  # Customers only
+def get_active_order(request):
+    """
+    Retrieve the active order for the authenticated customer.
+    """
+    try:
+        # Retrieve the active order for the customer
+        order = Order.objects.get(buyer=request.user, status='active')
+        serializer = OrderSerializer(order)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    except Order.DoesNotExist:
+        return Response({'error': 'No active order found.'}, status=status.HTTP_404_NOT_FOUND)
+
+
 @api_view(['GET', 'PATCH'])
 @permission_classes([IsAuthenticated])  # Both sellers and customers
 def order_detail(request, id):
@@ -158,6 +174,200 @@ def order_detail(request, id):
 
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated, IsBuyer])  # Customers only
+def add_item_to_order(request):
+    """
+    Add a stock item to an active order. If no active order exists, create one.
+    """
+    print(request.data)
+    try:
+        shop_id = request.data.get('shop_id')
+        stock_id = request.data.get('stock_id')
+        quantity = request.data.get('quantity')
+
+        if not all([shop_id, stock_id, quantity]):
+            return Response({'error': 'shop_id, stock_id, and quantity are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        shop = Shop.objects.get(id=shop_id)
+        stock = Stock.objects.get(id=stock_id)
+
+        # Ensure enough stock is available
+        if stock.quantity < int(quantity):
+            return Response({'error': f'Not enough stock available for {stock.name}. Only {stock.quantity} left.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check for an existing active order
+        order, created = Order.objects.get_or_create(
+            buyer=request.user,
+            shop=shop,
+            status='active',
+            defaults={'total_price': 0}
+        )
+
+        # Add item to order
+        order_item, item_created = OrderItem.objects.get_or_create(
+            order=order,
+            stock=stock,
+            defaults={
+                'quantity': quantity,
+                'price_at_purchase': stock.price_per_unit
+            }
+        )
+
+        if not item_created:
+            # If the item already exists in the order, update the quantity
+            order_item.quantity += int(quantity)
+            order_item.save()
+
+        # Deduct stock quantity
+        stock.quantity -= int(quantity)
+        stock.save()
+
+        # Update total price of the order
+        order.total_price += stock.price_per_unit * int(quantity)
+        order.save()
+
+        return Response({
+            'message': 'Item added to order successfully.',
+            'order_id': order.id,
+            'order_item_id': order_item.id,
+            'quantity': order_item.quantity,
+        }, status=status.HTTP_200_OK)
+
+    except Shop.DoesNotExist:
+        return Response({'error': 'Shop not found.'}, status=status.HTTP_404_NOT_FOUND)
+    except Stock.DoesNotExist:
+        return Response({'error': 'Stock not found.'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        print(e)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated, IsBuyer])  # Only customers
+def delete_item_from_order(request, order_item_id):
+    try:
+        # Retrieve the order item
+        order_item = OrderItem.objects.get(id=order_item_id, order__buyer=request.user, order__status='active')
+    except OrderItem.DoesNotExist:
+        return Response({'error': 'Order item not found or not part of an active order.'}, status=status.HTTP_404_NOT_FOUND)
+
+    # Restore stock quantity
+    stock = order_item.stock
+    stock.quantity += int(order_item.quantity)
+    stock.save()
+
+    # Update the order total price
+    order = order_item.order
+    order.total_price -= int(order_item.quantity) * int(order_item.price_at_purchase)
+    order.save()
+
+    # Delete the order item
+    order_item.delete()
+
+    return Response({'message': 'Item removed from order successfully.'}, status=status.HTTP_200_OK)
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated, IsBuyer])  # Only customers
+def edit_item_quantity(request, order_item_id):
+    try:
+        # Retrieve the order item
+        order_item = OrderItem.objects.get(id=order_item_id, order__buyer=request.user, order__status='active')
+    except OrderItem.DoesNotExist:
+        return Response({'error': 'Order item not found or not part of an active order.'}, status=status.HTTP_404_NOT_FOUND)
+
+    # Parse the new quantity
+    new_quantity = request.data.get('quantity')
+    if not new_quantity or int(new_quantity) <= 0:
+        return Response({'error': 'Quantity must be a positive number.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    new_quantity = int(new_quantity)
+    current_quantity = int(order_item.quantity)
+    stock = order_item.stock
+
+    # Calculate the quantity difference
+    quantity_difference = new_quantity - current_quantity
+
+    # Ensure sufficient stock if increasing quantity
+    if quantity_difference > 0 and stock.quantity < quantity_difference:
+        return Response({'error': f'Not enough stock for {stock.name}. Available: {stock.quantity}.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Update stock quantity
+    stock.quantity -= quantity_difference
+    stock.save()
+
+    # Update order item quantity
+    order_item.quantity = new_quantity
+    order_item.save()
+
+    # Update the order total price
+    order = order_item.order
+    order.total_price += quantity_difference * int(order_item.price_at_purchase)
+    order.save()
+
+    return Response({'message': 'Item quantity updated successfully.', 'order_item': {
+        'id': order_item.id,
+        'stock': order_item.stock.name,
+        'quantity': order_item.quantity,
+        'price_at_purchase': order_item.price_at_purchase
+    }}, status=status.HTTP_200_OK)
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated, IsBuyer])  # Customers only
+def submit_order(request, id):
+    """
+    Submit an active order by changing its status to pending.
+    """
+    try:
+        order = Order.objects.get(id=id, buyer=request.user, status='active')
+        order.status = 'pending'
+        order.save()
+        return Response({'message': 'Order submitted successfully!'}, status=status.HTTP_200_OK)
+
+    except Order.DoesNotExist:
+        return Response({'error': 'Active order not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated, IsSeller])  # Sellers only
+def confirm_order(request, id):
+    """
+    Confirm a pending order by changing its status to completed.
+    """
+    try:
+        order = Order.objects.get(id=id, shop__seller=request.user, status='pending')
+        order.status = 'completed'
+        order.save()
+        return Response({'message': 'Order confirmed successfully!'}, status=status.HTTP_200_OK)
+
+    except Order.DoesNotExist:
+        return Response({'error': 'Pending order not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated, IsBuyer])  # Customers only
+def cancel_order(request, id):
+    """
+    Cancel a pending order by changing its status to cancelled and restoring stock quantities.
+    """
+    try:
+        order = Order.objects.get(id=id, buyer=request.user, status='pending')
+
+        # Restore stock quantities
+        for item in order.items.all():
+            item.stock.quantity += item.quantity
+            item.stock.save()
+
+        order.status = 'cancelled'
+        order.save()
+        return Response({'message': 'Order cancelled successfully!'}, status=status.HTTP_200_OK)
+
+    except Order.DoesNotExist:
+        return Response({'error': 'Pending order not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['POST'])
 @permission_classes([IsAuthenticated, IsSeller])  # Only sellers
 def add_stock(request):
     try:
@@ -169,6 +379,7 @@ def add_stock(request):
             status=status.HTTP_403_FORBIDDEN
         )
 
+    print(request.data)
     # Create a new stock entry associated with the seller's shop
     serializer = StockSerializer(data=request.data)
     if serializer.is_valid():
@@ -216,13 +427,10 @@ def edit_stock(request, id):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])  # Both sellers and buyers
-def view_stocks(request):
-    shop_id = request.query_params.get('shop_id')  # Expect `shop_id` in query parameters
-    if not shop_id:
-        return Response({'error': 'shop_id query parameter is required.'}, status=status.HTTP_400_BAD_REQUEST)
-
+def view_stocks(request, id):
     try:
-        shop = Shop.objects.get(id=shop_id)
+        # Retrieve the shop by ID
+        shop = Shop.objects.get(id=id)
     except Shop.DoesNotExist:
         return Response({'error': 'Shop not found.'}, status=status.HTTP_404_NOT_FOUND)
 
