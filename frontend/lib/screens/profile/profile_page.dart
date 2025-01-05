@@ -24,25 +24,35 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       final response = await ApiService.authenticatedGetRequest("profile");
       if (response.statusCode == 200) {
-        setState(() {
-          _profileData = jsonDecode(response.body);
-          _isLoading = false;
-        });
+        if (mounted) { // Ensure the widget is still in the widget tree
+          setState(() {
+            _profileData = jsonDecode(response.body);
+            _isLoading = false;
+          });
+        }
       } else {
         throw Exception("Failed to load profile");
       }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: ${e.toString()}")),
-      );
+      if (mounted) { // Ensure the widget is still in the widget tree
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: ${e.toString()}")),
+        );
+      }
     }
   }
 
   Future<void> _refresh() async {
     await _fetchProfile();
+  }
+
+  @override
+  void dispose() {
+    // Clean up any resources here if needed before the widget is destroyed
+    super.dispose();
   }
 
   @override
@@ -85,7 +95,9 @@ class _ProfilePageState extends State<ProfilePage> {
                                 builder: (context) => UpdateProfilePage(profileData: _profileData!),
                               ),
                             ).then((_) {
-                              _fetchProfile(); // Refresh profile after update
+                              if (mounted) {
+                                _fetchProfile(); // Refresh profile after update if widget is mounted
+                              }
                             });
                           },
                           child: const Text("Update Profile"),
@@ -97,3 +109,4 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 }
+

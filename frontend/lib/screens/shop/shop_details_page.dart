@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/services/api_service.dart';
 import 'dart:convert';
-import '../orders/ongoing_order_page.dart';
 
 class ShopDetailsPage extends StatefulWidget {
   final int shopId;
   final Function(int) onOrderCreated;
 
-  const ShopDetailsPage({super.key, required this.shopId, required this.onOrderCreated});
+  const ShopDetailsPage(
+      {super.key, required this.shopId, required this.onOrderCreated});
 
   @override
   State<ShopDetailsPage> createState() => _ShopDetailsPageState();
@@ -18,7 +18,8 @@ class _ShopDetailsPageState extends State<ShopDetailsPage> {
 
   Future<List<Map<String, dynamic>>> _fetchStockItems() async {
     try {
-      final response = await ApiService.authenticatedGetRequest('stocks/${widget.shopId}');
+      final response =
+          await ApiService.authenticatedGetRequest('stocks/${widget.shopId}');
       if (response.statusCode == 200) {
         return List<Map<String, dynamic>>.from(jsonDecode(response.body));
       } else {
@@ -43,30 +44,43 @@ class _ShopDetailsPageState extends State<ShopDetailsPage> {
         },
       );
 
-      if (response.statusCode == 201) {
+      if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
         final orderId = responseData['order_id'];
 
-        widget.onOrderCreated(orderId); // Pass the orderId back to the HomePage if needed
+        widget.onOrderCreated(
+            orderId); // Pass the orderId back to the HomePage if needed
 
-        // Navigate directly to OngoingOrderPage
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const OngoingOrderPage(),
-          ),
-        );
+        if (mounted) {
+          Navigator.pop(context); // Close the dialog
+          setState(() {
+            _stockItems = _fetchStockItems();
+          });
+        }
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Item added to order successfully!")),
         );
       } else {
-        throw Exception("Failed to add item to order. Status: ${response.statusCode}");
+        // Parse the response body
+        final errorResponse = jsonDecode(response.body);
+
+        // Access the "error" field
+        final errorMessage = errorResponse['error'] ?? 'An unknown error occurred';
+
+        if (mounted) {
+          Navigator.pop(context); // Close the dialog
+        }
+
+        // Throw an exception with the error message
+        throw Exception("Failed to add item to order: $errorMessage");
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: ${e.toString()}")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: ${e.toString()}")),
+        );
+      }
     }
   }
 
@@ -98,6 +112,15 @@ class _ShopDetailsPageState extends State<ShopDetailsPage> {
 
           final stockItems = snapshot.data ?? [];
 
+          if (stockItems.isEmpty) {
+            return const Center(
+              child: Text(
+                "No stock items available.",
+                style: TextStyle(fontSize: 18, color: Colors.grey),
+              ),
+            );
+          }
+
           return GridView.builder(
             padding: const EdgeInsets.all(10.0),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -128,12 +151,12 @@ class _ShopDetailsPageState extends State<ShopDetailsPage> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        "Price: ${item['price_per_unit']} ${item['unit']}",
+                        "Price: ${item['price_per_unit']} lei / ${item['unit']}",
                         style: const TextStyle(fontSize: 14),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        "Qty: ${item['quantity']}",
+                        "Qty: ${item['quantity']} ${item['unit']}",
                         style: const TextStyle(fontSize: 14),
                       ),
                     ],
@@ -158,13 +181,14 @@ class _ShopDetailsPageState extends State<ShopDetailsPage> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text("Price: ${item['price_per_unit']} ${item['unit']}"),
+              Text("Price: ${item['price_per_unit']} lei / ${item['unit']}"),
               Text("Subcategory: ${item['subcategory']}"),
-              Text("Available Quantity: ${item['quantity']}"),
+              Text("Available Quantity: ${item['quantity']} ${item['unit']}"),
               const SizedBox(height: 10),
               TextField(
                 controller: _quantityController,
-                decoration: const InputDecoration(labelText: "Desired Quantity"),
+                decoration:
+                    const InputDecoration(labelText: "Desired Quantity"),
                 keyboardType: TextInputType.number,
               ),
             ],
@@ -176,20 +200,25 @@ class _ShopDetailsPageState extends State<ShopDetailsPage> {
             ),
             ElevatedButton(
               onPressed: () async {
-                final availableQuantity = double.tryParse(item['quantity'].toString()) ?? 0;
-                final enteredQuantity = double.tryParse(_quantityController.text) ?? 0;
+                final availableQuantity =
+                    double.tryParse(item['quantity'].toString()) ?? 0;
+                final enteredQuantity =
+                    double.tryParse(_quantityController.text) ?? 0;
 
-                if (enteredQuantity > 0 && enteredQuantity <= availableQuantity) {
-                  await _addToOrder(widget.shopId, item['id'], enteredQuantity.toInt());
-                  Navigator.pop(context); // Close dialog after adding
+                if (enteredQuantity > 0 &&
+                    enteredQuantity <= availableQuantity) {
+                  await _addToOrder(
+                      widget.shopId, item['id'], enteredQuantity.toInt());
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        "Please enter a valid quantity (1 to $availableQuantity).",
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          "Please enter a valid quantity (1 to $availableQuantity).",
+                        ),
                       ),
-                    ),
-                  );
+                    );
+                  }
                 }
               },
               child: const Text("Add to Order"),

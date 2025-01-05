@@ -16,6 +16,8 @@ class _OngoingOrderPageState extends State<OngoingOrderPage> {
   Future<void> _fetchActiveOrder() async {
     try {
       final response = await ApiService.authenticatedGetRequest('orders/active');
+      if (!mounted) return; // Check if the widget is still in the tree
+
       if (response.statusCode == 200) {
         setState(() {
           _orderDetails = jsonDecode(response.body);
@@ -30,14 +32,17 @@ class _OngoingOrderPageState extends State<OngoingOrderPage> {
         throw Exception("Failed to fetch active order.");
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: ${e.toString()}")),
-      );
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) { // Check if the widget is still in the tree
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: ${e.toString()}")),
+        );
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
+
 
   Future<void> _editOrderItem(int orderItemId, int quantity) async {
     try {
@@ -98,6 +103,31 @@ class _OngoingOrderPageState extends State<OngoingOrderPage> {
     }
   }
 
+  Future<void> _cancelOrder() async {
+    if (_orderDetails == null) return;
+
+    try {
+      final response = await ApiService.authenticatedPatchRequest(
+        'orders/${_orderDetails!['id']}/cancel',
+        {},
+      );
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Order cancelled successfully.")),
+        );
+        setState(() {
+          _orderDetails = null; // Clear active order
+        });
+      } else {
+        throw Exception("Failed to cancel order.");
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: ${e.toString()}")),
+      );
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -115,22 +145,52 @@ class _OngoingOrderPageState extends State<OngoingOrderPage> {
               : Column(
                   children: [
                     Expanded(
-                      child: ListView.builder(
-                        itemCount: _orderDetails!['items'].length,
-                        itemBuilder: (context, index) {
-                          final item = _orderDetails!['items'][index];
-                          return ListTile(
-                            title: Text("Stock ID: ${item['stock']}"),
-                            subtitle: Text(
-                              "Quantity: ${item['quantity']} | Price at Purchase: ${item['price_at_purchase']}",
+                      child: SingleChildScrollView(
+                        child: Column(
+                          children: [
+                            ListView.builder(
+                              shrinkWrap: true, // Allows the ListView to be wrapped inside a Column
+                              physics: const NeverScrollableScrollPhysics(), // Disable inner scroll
+                              itemCount: _orderDetails!['items'].length,
+                              itemBuilder: (context, index) {
+                                final item = _orderDetails!['items'][index];
+                                return Column(
+                                  children: [
+                                    ListTile(
+                                      title: Text("${item['stock']['name']}"),
+                                      subtitle: Text(
+                                        "Quantity: ${item['quantity']} ${item['stock']['unit']} \nPrice: ${(double.parse(item['price_at_purchase']) * double.parse(item['quantity']))} lei",
+                                      ),
+                                      trailing: IconButton(
+                                        icon: const Icon(Icons.delete, color: Colors.red),
+                                        onPressed: () => _removeOrderItem(item['id']),
+                                      ),
+                                      onTap: () => _editOrderItemDialog(item),
+                                    ),
+                                    if (index < _orderDetails!['items'].length - 1)
+                                      const Divider(), // Add divider except after the last item
+                                  ],
+                                );
+                              },
                             ),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () => _removeOrderItem(item['id']),
-                            ),
-                            onTap: () => _editOrderItemDialog(item),
-                          );
-                        },
+                          ],
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            "Total Price:",
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            "${_orderDetails!['total_price']} lei",
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                        ],
                       ),
                     ),
                     Padding(
@@ -143,7 +203,7 @@ class _OngoingOrderPageState extends State<OngoingOrderPage> {
                             child: const Text("Place Order"),
                           ),
                           ElevatedButton(
-                            onPressed: () => Navigator.pop(context),
+                            onPressed: _cancelOrder,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.red,
                             ),
