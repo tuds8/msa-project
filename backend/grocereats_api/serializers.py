@@ -118,6 +118,14 @@ class StockSerializer(serializers.ModelSerializer):
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
+    stock = StockSerializer(read_only=True)  # Use StockSerializer to serialize the stock object
+
+    class Meta:
+        model = OrderItem
+        fields = ['id', 'stock', 'quantity', 'price_at_purchase']
+        read_only_fields = ['id', 'price_at_purchase']
+
+class OrderItemSimpleSerializer(serializers.ModelSerializer):
     stock = serializers.PrimaryKeyRelatedField(queryset=Stock.objects.all())  # Allow referencing stock
 
     class Meta:
@@ -125,6 +133,15 @@ class OrderItemSerializer(serializers.ModelSerializer):
         fields = ['id', 'stock', 'quantity', 'price_at_purchase']
         read_only_fields = ['id', 'price_at_purchase']
 
+
+class OrderSimpleSerializer(serializers.ModelSerializer):
+    items = OrderItemSimpleSerializer(many=True)
+    shop = ShopSerializer()
+
+    class Meta:
+        model = Order
+        fields = ['id', 'buyer', 'shop', 'total_price', 'status', 'timestamp', 'items']
+        read_only_fields = ['id', 'buyer', 'total_price', 'timestamp', 'status']
 
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True)  # Nested serializer for items

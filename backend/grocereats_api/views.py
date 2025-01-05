@@ -5,7 +5,7 @@ from rest_framework import status
 from django.http import JsonResponse
 from .models import Shop, Stock, Order, OrderItem, SubCategory, Category, PickupPoint
 from .serializers import ShopSerializer, StockSerializer, OrderSerializer, UserSerializer, SubCategorySerializer, \
-    CategorySerializer, RatingSerializer, PickupPointSerializer
+    CategorySerializer, RatingSerializer, PickupPointSerializer, OrderSimpleSerializer
 from .permissions import IsSeller, IsBuyer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
@@ -52,13 +52,13 @@ def logout_user(request):
 @permission_classes([IsAuthenticated])  # Both sellers and customers
 def list_orders(request):
     if request.user.role == 'customer':  # Customers
-        orders_list = Order.objects.filter(buyer=request.user)
+        orders_list = Order.objects.filter(buyer=request.user).exclude(status='active')
     elif request.user.role == 'seller':  # Sellers
-        orders_list = Order.objects.filter(shop__seller=request.user)
+        orders_list = Order.objects.filter(shop__seller=request.user).exclude(status='active')
     else:
         return Response({'error': 'Invalid user role'}, status=status.HTTP_403_FORBIDDEN)
 
-    serializer = OrderSerializer(orders_list, many=True)
+    serializer = OrderSimpleSerializer(orders_list, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -196,16 +196,27 @@ def add_item_to_order(request):
             return Response({'error': f'Not enough stock available for {stock.name}. Only {stock.quantity} left.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Check for an existing active order
-        order, created = Order.objects.get_or_create(
-            buyer=request.user,
-            shop=shop,
-            status='active',
-            defaults={'total_price': 0}
-        )
+        active_order = Order.objects.filter(buyer=request.user, status='active').first()
+
+        if active_order:
+            # If an active order exists, ensure it is for the same shop
+            if active_order.shop.id != shop.id:
+                return Response(
+                    {'error': 'You cannot add items from a different shop to your active order. Please submit or cancel your active order first.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            # Create a new active order if none exists
+            active_order = Order.objects.create(
+                buyer=request.user,
+                shop=shop,
+                status='active',
+                total_price=0
+            )
 
         # Add item to order
         order_item, item_created = OrderItem.objects.get_or_create(
-            order=order,
+            order=active_order,
             stock=stock,
             defaults={
                 'quantity': quantity,
@@ -223,12 +234,12 @@ def add_item_to_order(request):
         stock.save()
 
         # Update total price of the order
-        order.total_price += stock.price_per_unit * int(quantity)
-        order.save()
+        active_order.total_price += stock.price_per_unit * int(quantity)
+        active_order.save()
 
         return Response({
             'message': 'Item added to order successfully.',
-            'order_id': order.id,
+            'order_id': active_order.id,
             'order_item_id': order_item.id,
             'quantity': order_item.quantity,
         }, status=status.HTTP_200_OK)
@@ -346,14 +357,15 @@ def confirm_order(request, id):
 
 
 @api_view(['PATCH'])
-@permission_classes([IsAuthenticated, IsBuyer])  # Customers only
+@permission_classes([IsAuthenticated])
 def cancel_order(request, id):
     """
     Cancel a pending order by changing its status to cancelled and restoring stock quantities.
     """
     try:
-        order = Order.objects.get(id=id, buyer=request.user, status='pending')
-
+        order = Order.objects.get(id=id, buyer=request.user)
+        if order.status != 'pending' and order.status != 'active':
+            return Response({'error': 'Only active and pending orders can be cancelled.'}, status=status.HTTP_403_FORBIDDEN)
         # Restore stock quantities
         for item in order.items.all():
             item.stock.quantity += item.quantity
