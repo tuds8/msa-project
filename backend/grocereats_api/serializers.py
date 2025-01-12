@@ -135,12 +135,13 @@ class OrderItemSimpleSerializer(serializers.ModelSerializer):
 
 
 class OrderSimpleSerializer(serializers.ModelSerializer):
-    items = OrderItemSimpleSerializer(many=True)
+    # items = OrderItemSimpleSerializer(many=True)
     shop = ShopSerializer()
+    buyer = UserSerializer()
 
     class Meta:
         model = Order
-        fields = ['id', 'buyer', 'shop', 'total_price', 'status', 'timestamp', 'items']
+        fields = ['id', 'buyer', 'shop', 'buyer', 'total_price', 'status', 'timestamp']
         read_only_fields = ['id', 'buyer', 'total_price', 'timestamp', 'status']
 
 class OrderSerializer(serializers.ModelSerializer):
