@@ -24,7 +24,7 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       final response = await ApiService.authenticatedGetRequest("profile");
       if (response.statusCode == 200) {
-        if (mounted) { // Ensure the widget is still in the widget tree
+        if (mounted) {
           setState(() {
             _profileData = jsonDecode(response.body);
             _isLoading = false;
@@ -34,7 +34,7 @@ class _ProfilePageState extends State<ProfilePage> {
         throw Exception("Failed to load profile");
       }
     } catch (e) {
-      if (mounted) { // Ensure the widget is still in the widget tree
+      if (mounted) {
         setState(() {
           _isLoading = false;
         });
@@ -51,7 +51,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   void dispose() {
-    // Clean up any resources here if needed before the widget is destroyed
     super.dispose();
   }
 
@@ -64,7 +63,7 @@ class _ProfilePageState extends State<ProfilePage> {
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
-              await ApiService.deleteTokens(); // Clear stored tokens
+              await ApiService.deleteTokens();
               Navigator.pushReplacementNamed(context, '/login');
             },
             tooltip: "Logout",
@@ -76,37 +75,125 @@ class _ProfilePageState extends State<ProfilePage> {
           : RefreshIndicator(
               onRefresh: _refresh,
               child: _profileData != null
-                  ? ListView(
+                  ? SingleChildScrollView(
                       padding: const EdgeInsets.all(16.0),
-                      children: [
-                        Text("Username: ${_profileData!['username']}", style: const TextStyle(fontSize: 18)),
-                        Text("Email: ${_profileData!['email']}", style: const TextStyle(fontSize: 18)),
-                        Text("First Name: ${_profileData!['first_name']}", style: const TextStyle(fontSize: 18)),
-                        Text("Last Name: ${_profileData!['last_name']}", style: const TextStyle(fontSize: 18)),
-                        Text("Phone: ${_profileData!['phone']}", style: const TextStyle(fontSize: 18)),
-                        Text("Rating: ${_profileData!['rating']}", style: const TextStyle(fontSize: 18)),
-                        Text("Role: ${_profileData!['role']}", style: const TextStyle(fontSize: 18)),
-                        const SizedBox(height: 20),
-                        ElevatedButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => UpdateProfilePage(profileData: _profileData!),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Profile Information Card
+                          Card(
+                            elevation: 4,
+                            margin: const EdgeInsets.symmetric(vertical: 8),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.person, color: Colors.blue),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        "${_profileData!['first_name']} ${_profileData!['last_name']}",
+                                        style: const TextStyle(fontSize: 18),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.email, color: Colors.red),
+                                      const SizedBox(width: 8),
+                                      Flexible(
+                                        child: Text(
+                                          _profileData!['email'],
+                                          style: const TextStyle(fontSize: 16),
+                                          overflow: TextOverflow.visible,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.phone, color: Colors.green),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        _profileData!['phone'] ?? "N/A",
+                                        style: const TextStyle(fontSize: 16),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
-                            ).then((_) {
-                              if (mounted) {
-                                _fetchProfile(); // Refresh profile after update if widget is mounted
-                              }
-                            });
-                          },
-                          child: const Text("Update Profile"),
-                        ),
-                      ],
+                            ),
+                          ),
+
+                          // Rating Information Card
+                          Card(
+                            elevation: 4,
+                            margin: const EdgeInsets.symmetric(vertical: 8),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.star, color: Colors.amber),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    "Rating: ${_profileData!['rating'] ?? 'Not Rated'}",
+                                    style: const TextStyle(fontSize: 16),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                          // Role Information Card
+                          Card(
+                            elevation: 4,
+                            margin: const EdgeInsets.symmetric(vertical: 8),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.work, color: Colors.orange),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    "Role: ${_profileData!['role']}",
+                                    style: const TextStyle(fontSize: 16),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                          // Update Profile Button
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 16.0),
+                            child: Center(
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          UpdateProfilePage(profileData: _profileData!),
+                                    ),
+                                  ).then((_) {
+                                    if (mounted) {
+                                      _fetchProfile();
+                                    }
+                                  });
+                                },
+                                child: const Text("Update Profile"),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     )
                   : const Center(child: Text("Failed to load profile")),
             ),
     );
   }
 }
-

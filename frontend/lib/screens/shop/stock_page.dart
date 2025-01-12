@@ -19,6 +19,45 @@ class _StockPageState extends State<StockPage> {
   String? _selectedCategory;
   String? _selectedSubcategory;
 
+  // Map linking subcategories to specific images
+  final Map<String, String> subcategoryImages = {
+    // Vegetables
+    "Potatoes": "assets/images/potatoes.png",
+    "Onions": "assets/images/onions.png",
+    "Carrots": "assets/images/carrots.png",
+    "Cabbage": "assets/images/cabbage.png",
+    "Tomatoes": "assets/images/tomatoes.png",
+    "Peppers": "assets/images/peppers.png",
+    "Cucumbers": "assets/images/cucumbers.png",
+    "Garlic": "assets/images/garlic.png",
+    "Eggplant": "assets/images/eggplant.png",
+    "Zucchini": "assets/images/zucchini.png",
+    // Fruit
+    "Apples": "assets/images/apples.png",
+    "Pears": "assets/images/pears.png",
+    "Plums": "assets/images/plums.png",
+    "Cherries": "assets/images/cherries.png",
+    "Grapes": "assets/images/grapes.png",
+    "Peaches": "assets/images/peaches.png",
+    "Apricots": "assets/images/apricots.png",
+    "Strawberries": "assets/images/strawberries.png",
+    "Raspberries": "assets/images/raspberries.png",
+    "Blueberries": "assets/images/blueberries.png",
+    // Homemade products
+    "Honey": "assets/images/honey.png",
+    "Wine": "assets/images/wine.png",
+    "Jam": "assets/images/jam.png",
+    "Pie": "assets/images/pie.png",
+    "Pickles": "assets/images/pickles.png",
+    "Zacusca": "assets/images/zacusca.png",
+    // Animal based products
+    "Eggs": "assets/images/eggs.png",
+    "Milk": "assets/images/milk.png",
+    "Sausage": "assets/images/sausage.png",
+    "Meat": "assets/images/meat.png",
+    "Cured Meats": "assets/images/cured_meats.png",
+  };
+
   Future<List<Map<String, dynamic>>> _fetchStockItems() async {
     try {
       final response = await ApiService.authenticatedGetRequest(
@@ -324,10 +363,10 @@ class _StockPageState extends State<StockPage> {
           final stockItems = snapshot.data ?? [];
 
           return GridView.builder(
-            padding: const EdgeInsets.all(10.0),
+            padding: const EdgeInsets.all(15.0),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              childAspectRatio: 2.0,
+              childAspectRatio: 1.0,
               crossAxisSpacing: 10.0,
               mainAxisSpacing: 10.0,
             ),
@@ -336,9 +375,9 @@ class _StockPageState extends State<StockPage> {
               if (index == stockItems.length) {
                 return GestureDetector(
                   onTap: _addNewStockItem,
-                  child: Card(
+                  child: const Card(
                     color: Colors.blueAccent,
-                    child: const Center(
+                    child: Center(
                       child: Text(
                         "Add New Item",
                         style: TextStyle(color: Colors.white, fontSize: 16),
@@ -352,11 +391,32 @@ class _StockPageState extends State<StockPage> {
               return GestureDetector(
                 onTap: () => _showStockItemDetails(item),
                 child: Card(
-                  child: Center(
-                    child: Text(
-                      item['name'],
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 16),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: subcategoryImages.containsKey(item['subcategory'])
+                          ? null // If an image exists, no need for solid color
+                          : Colors.white, // Fallback to white background
+                      image: subcategoryImages.containsKey(item['subcategory'])
+                          ? DecorationImage(
+                              image: AssetImage(subcategoryImages[item['subcategory']]!),
+                              fit: BoxFit.cover, // Cover the entire card
+                            )
+                          : null, // No image if fallback
+                      borderRadius: BorderRadius.circular(10.0), // Optional for rounded corners
+                    ),
+                    child: Center(
+                      child: Container(
+                        color: Colors.black.withOpacity(0.5), // Semi-transparent overlay
+                        child: Text(
+                          item['name'],
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white, // Text color for visibility
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),

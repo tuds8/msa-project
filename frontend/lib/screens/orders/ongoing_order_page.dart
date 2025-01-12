@@ -16,7 +16,7 @@ class _OngoingOrderPageState extends State<OngoingOrderPage> {
   Future<void> _fetchActiveOrder() async {
     try {
       final response = await ApiService.authenticatedGetRequest('orders/active');
-      if (!mounted) return; // Check if the widget is still in the tree
+      if (!mounted) return;
 
       if (response.statusCode == 200) {
         setState(() {
@@ -25,14 +25,14 @@ class _OngoingOrderPageState extends State<OngoingOrderPage> {
         });
       } else if (response.statusCode == 404) {
         setState(() {
-          _orderDetails = null; // No active order
+          _orderDetails = null;
           _isLoading = false;
         });
       } else {
         throw Exception("Failed to fetch active order.");
       }
     } catch (e) {
-      if (mounted) { // Check if the widget is still in the tree
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Error: ${e.toString()}")),
         );
@@ -42,7 +42,6 @@ class _OngoingOrderPageState extends State<OngoingOrderPage> {
       }
     }
   }
-
 
   Future<void> _editOrderItem(int orderItemId, int quantity) async {
     try {
@@ -91,7 +90,7 @@ class _OngoingOrderPageState extends State<OngoingOrderPage> {
           const SnackBar(content: Text("Order placed successfully.")),
         );
         setState(() {
-          _orderDetails = null; // Clear active order
+          _orderDetails = null;
         });
       } else {
         throw Exception("Failed to place order.");
@@ -116,7 +115,7 @@ class _OngoingOrderPageState extends State<OngoingOrderPage> {
           const SnackBar(content: Text("Order cancelled successfully.")),
         );
         setState(() {
-          _orderDetails = null; // Clear active order
+          _orderDetails = null;
         });
       } else {
         throw Exception("Failed to cancel order.");
@@ -131,13 +130,12 @@ class _OngoingOrderPageState extends State<OngoingOrderPage> {
   @override
   void initState() {
     super.initState();
-    _fetchActiveOrder(); // Fetch the active order on initialization
+    _fetchActiveOrder();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Ongoing Order")),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _orderDetails == null
@@ -145,50 +143,93 @@ class _OngoingOrderPageState extends State<OngoingOrderPage> {
               : Column(
                   children: [
                     Expanded(
-                      child: SingleChildScrollView(
-                        child: Column(
-                          children: [
-                            ListView.builder(
-                              shrinkWrap: true, // Allows the ListView to be wrapped inside a Column
-                              physics: const NeverScrollableScrollPhysics(), // Disable inner scroll
-                              itemCount: _orderDetails!['items'].length,
-                              itemBuilder: (context, index) {
-                                final item = _orderDetails!['items'][index];
-                                return Column(
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(8.0),
+                        itemCount: _orderDetails!['items'].length,
+                        itemBuilder: (context, index) {
+                          final item = _orderDetails!['items'][index];
+                          return Card(
+                            elevation: 4,
+                            margin: const EdgeInsets.symmetric(vertical: 8),
+                            child: InkWell(
+                              onTap: () => _editOrderItemDialog(item),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    ListTile(
-                                      title: Text("${item['stock']['name']}"),
-                                      subtitle: Text(
-                                        "Quantity: ${item['quantity']} ${item['stock']['unit']} \nPrice: ${(double.parse(item['price_at_purchase']) * double.parse(item['quantity']))} lei",
-                                      ),
-                                      trailing: IconButton(
-                                        icon: const Icon(Icons.delete, color: Colors.red),
-                                        onPressed: () => _removeOrderItem(item['id']),
-                                      ),
-                                      onTap: () => _editOrderItemDialog(item),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            const Icon(Icons.shopping_basket,
+                                                color: Colors.teal),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              "${item['stock']['name']}",
+                                              style: const TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.bold),
+                                            ),
+                                          ],
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(Icons.delete,
+                                              color: Colors.red),
+                                          onPressed: () =>
+                                              _removeOrderItem(item['id']),
+                                        ),
+                                      ],
                                     ),
-                                    if (index < _orderDetails!['items'].length - 1)
-                                      const Divider(), // Add divider except after the last item
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.format_list_numbered,
+                                            color: Colors.orange),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          "Quantity: ${item['quantity']} ${item['stock']['unit']}",
+                                          style: const TextStyle(fontSize: 16),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.attach_money,
+                                            color: Colors.green),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          "Price: ${(double.parse(item['price_at_purchase']) * double.parse(item['quantity'])).toStringAsFixed(2)} lei",
+                                          style: const TextStyle(fontSize: 16),
+                                        ),
+                                      ],
+                                    ),
                                   ],
-                                );
-                              },
+                                ),
+                              ),
                             ),
-                          ],
-                        ),
+                          );
+                        },
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0, vertical: 8.0),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
                             "Total Price:",
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold),
                           ),
                           Text(
                             "${_orderDetails!['total_price']} lei",
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
@@ -203,7 +244,7 @@ class _OngoingOrderPageState extends State<OngoingOrderPage> {
                             child: const Text("Place Order"),
                           ),
                           ElevatedButton(
-                            onPressed: _cancelOrder,
+                            onPressed: _cancelOrder, // Call _cancelOrder method here
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.red,
                             ),

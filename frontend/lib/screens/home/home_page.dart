@@ -17,6 +17,8 @@ class _HomePageState extends State<HomePage> {
   LatLng? _currentPosition;
   bool _isMapView = true;
   late Future<List<Map<String, dynamic>>> _shopsFuture;
+  final Set<Marker> _markers = {};
+  final Map<String, List<Map<String, dynamic>>> _shopsByPickupPoint = {};
 
   @override
   void initState() {
@@ -68,27 +70,111 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  void _addMarkers(List<Map<String, dynamic>> shops) {
+    final uniquePickUpPoints = <String, LatLng>{};
+
+    for (var shop in shops) {
+      final pickup = shop['pickup_point'];
+      if (pickup != null) {
+        final lat = double.tryParse(pickup['lat'] ?? '');
+        final long = double.tryParse(pickup['long'] ?? '');
+        if (lat != null && long != null) {
+          final latLng = LatLng(lat, long);
+          if (!uniquePickUpPoints.containsKey(pickup['id'].toString())) {
+            uniquePickUpPoints[pickup['id'].toString()] = latLng;
+
+            _shopsByPickupPoint[pickup['id'].toString()] = [shop];
+
+            _markers.add(
+              Marker(
+                markerId: MarkerId(pickup['id'].toString()),
+                position: latLng,
+                infoWindow: InfoWindow(
+                  title: pickup['name'],
+                  snippet: pickup['address'],
+                  onTap: () => _showShopsAtPickupPoint(pickup['id'].toString()),
+                ),
+              ),
+            );
+          } else {
+            _shopsByPickupPoint[pickup['id'].toString()]?.add(shop);
+          }
+        }
+      }
+    }
+
+    // Ensure the widget is still mounted before calling setState
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   Future<List<Map<String, dynamic>>> _fetchShops() async {
     try {
       final response = await ApiService.authenticatedGetRequest('shops');
       if (response.statusCode == 200) {
-        return List<Map<String, dynamic>>.from(jsonDecode(response.body));
+        final shops = List<Map<String, dynamic>>.from(jsonDecode(response.body));
+        _addMarkers(shops);
+        return shops;
       } else {
         throw Exception('Failed to fetch shops.');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: ${e.toString()}")),
-      );
+      // Check if the widget is still mounted before displaying a snackbar
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: ${e.toString()}")),
+        );
+      }
       return [];
     }
+  }
+
+  void _showShopsAtPickupPoint(String pickupPointId) {
+    final shops = _shopsByPickupPoint[pickupPointId] ?? [];
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Shops at this location"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: shops.map((shop) {
+              return ListTile(
+                title: Text(shop['name']),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ShopDetailsPage(
+                        shopId: shop['id'],
+                        onOrderCreated: (orderId) {
+                          print("Order ID created or modified: $orderId");
+                        },
+                      ),
+                    ),
+                  );
+                },
+              );
+            }).toList(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Close"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _moveToCurrentLocation() {
     if (_mapController == null || _currentPosition == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text("Map is not ready or location is unavailable.")),
+        const SnackBar(content: Text("Map is not ready or location is unavailable.")),
       );
       return;
     }
@@ -103,13 +189,25 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: const Text("Home"),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.toggle_off),
-            onPressed: () {
-              setState(() {
-                _isMapView = !_isMapView;
-              });
-            },
+          Row(
+            children: [
+              const Text(
+                "Map View",
+                style: TextStyle(fontSize: 16, color: Colors.white),
+              ),
+              Switch(
+                value: _isMapView,
+                onChanged: (value) {
+                  setState(() {
+                    _isMapView = value;
+                  });
+                },
+                activeColor: Colors.white,
+                activeTrackColor: Colors.tealAccent,
+                inactiveThumbColor: Colors.grey,
+                inactiveTrackColor: Colors.grey.shade400,
+              ),
+            ],
           ),
         ],
       ),
@@ -149,6 +247,7 @@ class _HomePageState extends State<HomePage> {
             ),
             myLocationEnabled: true,
             myLocationButtonEnabled: false,
+            markers: _markers,
           );
   }
 
@@ -193,8 +292,7 @@ class _HomePageState extends State<HomePage> {
               Text("Pickup Point: ${shop['pickup_point']['name']}"),
               Text("Address: ${shop['pickup_point']['address']}"),
               Text("Seller Email: ${shop['seller']['email']}"),
-              Text(
-                  "Seller Name: ${shop['seller']['first_name']} ${shop['seller']['last_name']}"),
+              Text("Seller Name: ${shop['seller']['first_name']} ${shop['seller']['last_name']}"),
               Text("Seller Phone: ${shop['seller']['phone']}"),
             ],
           ),
@@ -212,7 +310,6 @@ class _HomePageState extends State<HomePage> {
                     builder: (context) => ShopDetailsPage(
                       shopId: shop['id'],
                       onOrderCreated: (orderId) {
-                        // This callback is no longer responsible for navigation
                         print("Order ID created or modified: $orderId");
                       },
                     ),

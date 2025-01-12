@@ -45,7 +45,7 @@ class _ShopPageState extends State<ShopPage> {
       );
     }
 
-    return FutureBuilder<Map<String, dynamic>?>( 
+    return FutureBuilder<Map<String, dynamic>?>(
       future: _fetchShopDetails(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -93,57 +93,142 @@ class _ShopPageState extends State<ShopPage> {
           appBar: AppBar(title: const Text("Shop")),
           body: Padding(
             padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Shop Details
-                Text("Shop Name: $shopName", style: const TextStyle(fontSize: 18)),
-                const SizedBox(height: 10),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Shop Name
+                  Center(
+                    child: Text(
+                      "Shop Name: $shopName",
+                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center, // Optional, ensures centering
+                    ),
+                  ),
+                  const SizedBox(height: 16),
 
-                // Pickup Point Details
-                if (pickupPoint != null) ...[
-                  const Text("Pickup Point:", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  Text("Name: ${pickupPoint['name']}", style: const TextStyle(fontSize: 16)),
-                  Text("Address: ${pickupPoint['address']}", style: const TextStyle(fontSize: 16)),
-                  Text("Coordinates: ${pickupPoint['lat']}, ${pickupPoint['long']}", style: const TextStyle(fontSize: 16)),
-                  const SizedBox(height: 10),
-                ],
-
-                // Seller Details
-                if (seller != null) ...[
-                  const Text("Seller Information:", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  Text("Name: ${seller['first_name']} ${seller['last_name']}", style: const TextStyle(fontSize: 16)),
-                  Text("Email: ${seller['email']}", style: const TextStyle(fontSize: 16)),
-                  Text("Phone: ${seller['phone']}", style: const TextStyle(fontSize: 16)),
-                  const SizedBox(height: 10),
-                ],
-
-                // Edit Shop Button
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => EditShopPage(shopDetails: shopDetails),
+                  // Pickup Point Card
+                  if (pickupPoint != null)
+                    Card(
+                      elevation: 4,
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.location_pin, color: Colors.blue),
+                                const SizedBox(width: 8),
+                                Text(
+                                  pickupPoint['name'],
+                                  style: const TextStyle(fontSize: 18),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(Icons.place, color: Colors.green),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    pickupPoint['address'],
+                                    style: const TextStyle(fontSize: 16),
+                                    overflow: TextOverflow.visible,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    );
-                  },
-                  child: const Text("Edit Shop"),
-                ),
+                    ),
 
-                // View Stock Button
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => StockPage(shopId: shopDetails['id']),
+                  // Seller Information Card
+                  if (seller != null)
+                    Card(
+                      elevation: 4,
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.person, color: Colors.orange),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "${seller['first_name']} ${seller['last_name']}",
+                                  style: const TextStyle(fontSize: 18),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                const Icon(Icons.email, color: Colors.red),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    seller['email'],
+                                    style: const TextStyle(fontSize: 16),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                const Icon(Icons.phone, color: Colors.purple),
+                                const SizedBox(width: 8),
+                                Text(
+                                  seller['phone'],
+                                  style: const TextStyle(fontSize: 16),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    );
-                  },
-                  child: const Text("View Stock"),
-                ),
-              ],
+                    ),
+
+                  // Buttons for Editing Shop and Viewing Stock
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => EditShopPage(shopDetails: shopDetails),
+                              ),
+                            );
+                          },
+                          child: const Text("Edit Shop"),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => StockPage(shopId: shopDetails['id']),
+                              ),
+                            );
+                          },
+                          child: const Text("View Stock"),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );

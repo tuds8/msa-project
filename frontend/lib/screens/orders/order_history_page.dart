@@ -89,6 +89,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
         final profileData = jsonDecode(response.body);
         setState(() {
           _userRole = profileData['role'];
+          print(_userRole);
           _isLoadingRole = false;
         });
       } else {
@@ -170,7 +171,9 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "Order #${order['id']} at ${order['shop']['name']}",
+                          _userRole == 'customer'
+                              ? "Order #${order['id']} at ${order['shop']['name']}"
+                              : "Order #${order['id']} by ${order['buyer']['first_name']} ${order['buyer']['last_name']}",
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                           ),
@@ -182,9 +185,11 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
                     ),
                     Row(
                       children: [
-                        if (_userRole == 'seller' && order['status'] == 'pending')
+                        if (_userRole == 'seller' &&
+                            order['status'] == 'pending')
                           IconButton(
-                            icon: const Icon(Icons.check_circle, color: Colors.green),
+                            icon: const Icon(Icons.check_circle,
+                                color: Colors.green),
                             onPressed: () => _confirmOrder(order['id']),
                             tooltip: "Confirm Order",
                           ),

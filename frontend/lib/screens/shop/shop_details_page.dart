@@ -184,6 +184,7 @@ class _ShopDetailsPageState extends State<ShopDetailsPage> {
               Text("Price: ${item['price_per_unit']} lei / ${item['unit']}"),
               Text("Subcategory: ${item['subcategory']}"),
               Text("Available Quantity: ${item['quantity']} ${item['unit']}"),
+              Text("Description: ${item['description']}"),
               const SizedBox(height: 10),
               TextField(
                 controller: _quantityController,

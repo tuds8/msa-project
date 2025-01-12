@@ -68,7 +68,7 @@ class _OrdersPageState extends State<OrdersPage> {
           Row(
             children: [
               Text(
-                _isOngoingOrderView ? "Ongoing Order" : "Order History",
+                _isOngoingOrderView ? "Ongoing" : "History",
                 style: const TextStyle(fontSize: 16),
               ),
               Switch(
