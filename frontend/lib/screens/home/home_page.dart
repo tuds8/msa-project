@@ -289,11 +289,47 @@ class _HomePageState extends State<HomePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text("Pickup Point: ${shop['pickup_point']['name']}"),
-              Text("Address: ${shop['pickup_point']['address']}"),
-              Text("Seller Email: ${shop['seller']['email']}"),
-              Text("Seller Name: ${shop['seller']['first_name']} ${shop['seller']['last_name']}"),
-              Text("Seller Phone: ${shop['seller']['phone']}"),
+              Row(
+                children: [
+                  const Icon(Icons.location_on, color: Colors.teal),
+                  const SizedBox(width: 8),
+                  Text(shop['pickup_point']['name']),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.home, color: Colors.teal),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(shop['pickup_point']['address']),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.email, color: Colors.teal),
+                  const SizedBox(width: 8),
+                  Text(shop['seller']['email']),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.person, color: Colors.teal),
+                  const SizedBox(width: 8),
+                  Text("${shop['seller']['first_name']} ${shop['seller']['last_name']}"),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.phone, color: Colors.teal),
+                  const SizedBox(width: 8),
+                  Text(shop['seller']['phone']),
+                ],
+              ),
             ],
           ),
           actions: [

@@ -258,18 +258,56 @@ class _StockPageState extends State<StockPage> {
           content: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text("Price per Unit: ${item['price_per_unit']}"),
-                Text("Subcategory: ${item['subcategory']}"),
+                Row(
+                  children: [
+                    const Icon(Icons.price_check, color: Colors.teal),
+                    const SizedBox(width: 8),
+                    Text("Price: ${item['price_per_unit']} lei / unit"),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.category, color: Colors.teal),
+                    const SizedBox(width: 8),
+                    Text("Subcategory: ${item['subcategory']}"),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.inventory, color: Colors.teal),
+                    const SizedBox(width: 8),
+                    Text("Available Quantity: ${item['quantity']}"),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.description, color: Colors.teal),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        "Description: ${item['description']}",
+                        style: const TextStyle(height: 1.4),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: quantityController,
-                  decoration: const InputDecoration(labelText: "Quantity"),
+                  decoration: const InputDecoration(labelText: "Update Quantity"),
                   keyboardType: TextInputType.number,
                 ),
+                const SizedBox(height: 10),
                 TextField(
                   controller: descriptionController,
-                  decoration: const InputDecoration(labelText: "Description"),
+                  decoration: const InputDecoration(labelText: "Update Description"),
+                  // maxLines: 3,
                 ),
               ],
             ),
@@ -299,8 +337,8 @@ class _StockPageState extends State<StockPage> {
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                        content:
-                            Text("Failed to update item: ${response.body}")),
+                      content: Text("Failed to update item: ${response.body}"),
+                    ),
                   );
                 }
               },
@@ -320,8 +358,8 @@ class _StockPageState extends State<StockPage> {
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                        content:
-                            Text("Failed to delete item: ${response.body}")),
+                      content: Text("Failed to delete item: ${response.body}"),
+                    ),
                   );
                 }
               },

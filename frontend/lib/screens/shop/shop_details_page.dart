@@ -16,6 +16,41 @@ class ShopDetailsPage extends StatefulWidget {
 class _ShopDetailsPageState extends State<ShopDetailsPage> {
   late Future<List<Map<String, dynamic>>> _stockItems;
 
+  // Map linking subcategories to specific images
+  final Map<String, String> subcategoryImages = {
+    "Potatoes": "assets/images/potatoes.png",
+    "Onions": "assets/images/onions.png",
+    "Carrots": "assets/images/carrots.png",
+    "Cabbage": "assets/images/cabbage.png",
+    "Tomatoes": "assets/images/tomatoes.png",
+    "Peppers": "assets/images/peppers.png",
+    "Cucumbers": "assets/images/cucumbers.png",
+    "Garlic": "assets/images/garlic.png",
+    "Eggplant": "assets/images/eggplant.png",
+    "Zucchini": "assets/images/zucchini.png",
+    "Apples": "assets/images/apples.png",
+    "Pears": "assets/images/pears.png",
+    "Plums": "assets/images/plums.png",
+    "Cherries": "assets/images/cherries.png",
+    "Grapes": "assets/images/grapes.png",
+    "Peaches": "assets/images/peaches.png",
+    "Apricots": "assets/images/apricots.png",
+    "Strawberries": "assets/images/strawberries.png",
+    "Raspberries": "assets/images/raspberries.png",
+    "Blueberries": "assets/images/blueberries.png",
+    "Honey": "assets/images/honey.png",
+    "Wine": "assets/images/wine.png",
+    "Jam": "assets/images/jam.png",
+    "Pie": "assets/images/pie.png",
+    "Pickles": "assets/images/pickles.png",
+    "Zacusca": "assets/images/zacusca.png",
+    "Eggs": "assets/images/eggs.png",
+    "Milk": "assets/images/milk.png",
+    "Sausage": "assets/images/sausage.png",
+    "Meat": "assets/images/meat.png",
+    "Cured Meats": "assets/images/cured_meats.png",
+  };
+
   Future<List<Map<String, dynamic>>> _fetchStockItems() async {
     try {
       final response =
@@ -33,7 +68,7 @@ class _ShopDetailsPageState extends State<ShopDetailsPage> {
     }
   }
 
-  Future<void> _addToOrder(int shopId, int stockItemId, int quantity) async {
+    Future<void> _addToOrder(int shopId, int stockItemId, int quantity) async {
     try {
       final response = await ApiService.authenticatedPostRequest(
         'orders/add-item',
@@ -125,6 +160,7 @@ class _ShopDetailsPageState extends State<ShopDetailsPage> {
             padding: const EdgeInsets.all(10.0),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
+              childAspectRatio: 1.0,
               crossAxisSpacing: 10.0,
               mainAxisSpacing: 10.0,
             ),
@@ -138,28 +174,34 @@ class _ShopDetailsPageState extends State<ShopDetailsPage> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        item['name'],
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: subcategoryImages.containsKey(item['subcategory'])
+                          ? null // Use image if available
+                          : Colors.white, // Fallback to white background
+                      image: subcategoryImages.containsKey(item['subcategory'])
+                          ? DecorationImage(
+                              image: AssetImage(
+                                  subcategoryImages[item['subcategory']]!),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
+                      borderRadius: BorderRadius.circular(10.0),
+                    ),
+                    child: Center(
+                      child: Container(
+                        color: Colors.black.withOpacity(0.5), // Overlay for text visibility
+                        child: Text(
+                          item['name'],
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "Price: ${item['price_per_unit']} lei / ${item['unit']}",
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "Qty: ${item['quantity']} ${item['unit']}",
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               );
@@ -179,17 +221,50 @@ class _ShopDetailsPageState extends State<ShopDetailsPage> {
         return AlertDialog(
           title: Text(item['name']),
           content: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text("Price: ${item['price_per_unit']} lei / ${item['unit']}"),
-              Text("Subcategory: ${item['subcategory']}"),
-              Text("Available Quantity: ${item['quantity']} ${item['unit']}"),
-              Text("Description: ${item['description']}"),
+              Row(
+                children: [
+                  const Icon(Icons.price_check, color: Colors.teal),
+                  const SizedBox(width: 8),
+                  Text("Price: ${item['price_per_unit']} lei / ${item['unit']}"),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.category, color: Colors.teal),
+                  const SizedBox(width: 8),
+                  Text("Subcategory: ${item['subcategory']}"),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.inventory, color: Colors.teal),
+                  const SizedBox(width: 8),
+                  Text("Available: ${item['quantity']} ${item['unit']}"),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.description, color: Colors.teal),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      "Description: ${item['description']}",
+                      style: const TextStyle(height: 1.4), // Line height for readability
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 10),
               TextField(
                 controller: quantityController,
-                decoration:
-                    const InputDecoration(labelText: "Desired Quantity"),
+                decoration: const InputDecoration(labelText: "Desired Quantity"),
                 keyboardType: TextInputType.number,
               ),
             ],
