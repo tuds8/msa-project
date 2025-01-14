@@ -167,12 +167,12 @@ class _EditShopPageState extends State<EditShopPage> {
     await showDialog(
       context: context,
       builder: (context) {
-        final TextEditingController _pointNameController =
+        final TextEditingController pointNameController =
             TextEditingController();
         return AlertDialog(
           title: const Text("Enter Pick-Up Point Name"),
           content: TextField(
-            controller: _pointNameController,
+            controller: pointNameController,
             decoration: const InputDecoration(hintText: "Pick-Up Point Name"),
           ),
           actions: [
@@ -182,7 +182,7 @@ class _EditShopPageState extends State<EditShopPage> {
             ),
             TextButton(
               onPressed: () {
-                pointName = _pointNameController.text.trim();
+                pointName = pointNameController.text.trim();
                 Navigator.pop(context);
               },
               child: const Text("Save"),

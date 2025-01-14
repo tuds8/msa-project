@@ -259,7 +259,7 @@ class _OngoingOrderPageState extends State<OngoingOrderPage> {
   }
 
   void _editOrderItemDialog(Map<String, dynamic> item) {
-    final TextEditingController _quantityController =
+    final TextEditingController quantityController =
         TextEditingController(text: item['quantity'].toString());
 
     showDialog(
@@ -268,7 +268,7 @@ class _OngoingOrderPageState extends State<OngoingOrderPage> {
         return AlertDialog(
           title: const Text("Edit Item"),
           content: TextField(
-            controller: _quantityController,
+            controller: quantityController,
             decoration: const InputDecoration(labelText: "Quantity"),
             keyboardType: TextInputType.number,
           ),
@@ -279,7 +279,7 @@ class _OngoingOrderPageState extends State<OngoingOrderPage> {
             ),
             ElevatedButton(
               onPressed: () async {
-                final newQuantity = int.tryParse(_quantityController.text) ?? 0;
+                final newQuantity = int.tryParse(quantityController.text) ?? 0;
                 if (newQuantity > 0) {
                   await _editOrderItem(item['id'], newQuantity);
                   Navigator.pop(context);

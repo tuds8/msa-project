@@ -29,19 +29,19 @@ class LandingPage extends StatelessWidget {
             // Login Button
             ElevatedButton(
               onPressed: () => Navigator.pushNamed(context, '/login'),
-              child: const Text("Login"),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
               ),
+              child: const Text("Login"),
             ),
             const SizedBox(height: 16),
             // Register Button
             OutlinedButton(
               onPressed: () => Navigator.pushNamed(context, '/register'),
-              child: const Text("Register"),
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
               ),
+              child: const Text("Register"),
             ),
           ],
         ),

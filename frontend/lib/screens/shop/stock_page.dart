@@ -23,7 +23,7 @@ class _StockPageState extends State<StockPage> {
   final Map<String, String> subcategoryImages = {
     // Vegetables
     "Potatoes": "assets/images/potatoes.png",
-    "Onions": "assets/images/onions.png",
+    "Onions": "assets/images/onions2.png",
     "Carrots": "assets/images/carrots.png",
     "Cabbage": "assets/images/cabbage.png",
     "Tomatoes": "assets/images/tomatoes.png",
@@ -113,11 +113,11 @@ class _StockPageState extends State<StockPage> {
   }
 
   Future<void> _addNewStockItem() async {
-    final TextEditingController _nameController = TextEditingController();
-    final TextEditingController _quantityController = TextEditingController();
-    final TextEditingController _unitController = TextEditingController();
-    final TextEditingController _priceController = TextEditingController();
-    final TextEditingController _descriptionController =
+    final TextEditingController nameController = TextEditingController();
+    final TextEditingController quantityController = TextEditingController();
+    final TextEditingController unitController = TextEditingController();
+    final TextEditingController priceController = TextEditingController();
+    final TextEditingController descriptionController =
         TextEditingController();
 
     showDialog(
@@ -140,21 +140,21 @@ class _StockPageState extends State<StockPage> {
                     child: Column(
                       children: [
                         TextField(
-                          controller: _nameController,
+                          controller: nameController,
                           decoration: const InputDecoration(labelText: "Name"),
                         ),
                         TextField(
-                          controller: _unitController,
+                          controller: unitController,
                           decoration: const InputDecoration(labelText: "Unit"),
                         ),
                         TextField(
-                          controller: _quantityController,
+                          controller: quantityController,
                           decoration:
                               const InputDecoration(labelText: "Quantity"),
                           keyboardType: TextInputType.number,
                         ),
                         TextField(
-                          controller: _priceController,
+                          controller: priceController,
                           decoration: const InputDecoration(
                               labelText: "Price per Unit"),
                           keyboardType: TextInputType.number,
@@ -192,7 +192,7 @@ class _StockPageState extends State<StockPage> {
                             decoration: const InputDecoration(labelText: "Subcategory"),
                           ),
                         TextField(
-                          controller: _descriptionController,
+                          controller: descriptionController,
                           decoration: const InputDecoration(labelText: "Description"),
                         ),
                       ],
@@ -206,12 +206,12 @@ class _StockPageState extends State<StockPage> {
                     TextButton(
                       onPressed: () async {
                         final newItem = {
-                          'name': _nameController.text,
-                          'unit': _unitController.text,
-                          'quantity': _quantityController.text,
-                          'price_per_unit': _priceController.text,
+                          'name': nameController.text,
+                          'unit': unitController.text,
+                          'quantity': quantityController.text,
+                          'price_per_unit': priceController.text,
                           'subcategory': _selectedSubcategory,
-                          'description': _descriptionController.text,
+                          'description': descriptionController.text,
                         };
 
                         final response = await ApiService.authenticatedPostRequest(
@@ -245,9 +245,9 @@ class _StockPageState extends State<StockPage> {
   }
 
   Future<void> _showStockItemDetails(Map<String, dynamic> item) async {
-    final TextEditingController _descriptionController =
+    final TextEditingController descriptionController =
         TextEditingController(text: item['description']);
-    final TextEditingController _quantityController =
+    final TextEditingController quantityController =
         TextEditingController(text: item['quantity'].toString());
 
     await showDialog(
@@ -263,12 +263,12 @@ class _StockPageState extends State<StockPage> {
                 Text("Subcategory: ${item['subcategory']}"),
                 const SizedBox(height: 10),
                 TextField(
-                  controller: _quantityController,
+                  controller: quantityController,
                   decoration: const InputDecoration(labelText: "Quantity"),
                   keyboardType: TextInputType.number,
                 ),
                 TextField(
-                  controller: _descriptionController,
+                  controller: descriptionController,
                   decoration: const InputDecoration(labelText: "Description"),
                 ),
               ],
@@ -282,8 +282,8 @@ class _StockPageState extends State<StockPage> {
             TextButton(
               onPressed: () async {
                 final updatedItem = {
-                  'quantity': _quantityController.text,
-                  'description': _descriptionController.text,
+                  'quantity': quantityController.text,
+                  'description': descriptionController.text,
                 };
 
                 final response = await ApiService.authenticatedPatchRequest(
@@ -393,9 +393,10 @@ class _StockPageState extends State<StockPage> {
                 child: Card(
                   child: Container(
                     decoration: BoxDecoration(
-                      color: subcategoryImages.containsKey(item['subcategory'])
-                          ? null // If an image exists, no need for solid color
-                          : Colors.white, // Fallback to white background
+                      color: const Color.fromARGB(255, 0, 0, 0),
+                      // color: subcategoryImages.containsKey(item['subcategory'])
+                      //     ? const Color.fromARGB(0, 255, 255, 255) // If an image exists, no need for solid color
+                      //     : const Color.fromARGB(0, 255, 255, 255), // Fallback to black background
                       image: subcategoryImages.containsKey(item['subcategory'])
                           ? DecorationImage(
                               image: AssetImage(subcategoryImages[item['subcategory']]!),

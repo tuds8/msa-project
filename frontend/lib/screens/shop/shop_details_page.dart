@@ -171,7 +171,7 @@ class _ShopDetailsPageState extends State<ShopDetailsPage> {
   }
 
   void _showStockDetails(Map<String, dynamic> item) {
-    final TextEditingController _quantityController = TextEditingController();
+    final TextEditingController quantityController = TextEditingController();
 
     showDialog(
       context: context,
@@ -187,7 +187,7 @@ class _ShopDetailsPageState extends State<ShopDetailsPage> {
               Text("Description: ${item['description']}"),
               const SizedBox(height: 10),
               TextField(
-                controller: _quantityController,
+                controller: quantityController,
                 decoration:
                     const InputDecoration(labelText: "Desired Quantity"),
                 keyboardType: TextInputType.number,
@@ -204,7 +204,7 @@ class _ShopDetailsPageState extends State<ShopDetailsPage> {
                 final availableQuantity =
                     double.tryParse(item['quantity'].toString()) ?? 0;
                 final enteredQuantity =
-                    double.tryParse(_quantityController.text) ?? 0;
+                    double.tryParse(quantityController.text) ?? 0;
 
                 if (enteredQuantity > 0 &&
                     enteredQuantity <= availableQuantity) {
